@@ -204,6 +204,7 @@ function imagedone( obj, monId, success ) {
     if ( liveMode ) {
       writeText( monId, "Camera Offline" );
     } else {
+			loadNoData( monId ); // looks much better when there is no old image in the background
       writeText( monId, "No Data" );
     }
   } else {
@@ -223,7 +224,7 @@ function loadNoData( monId ) {
   if ( monId ) {
     var canvasCtx = monitorCanvasCtx[monId];
     var canvasObj = monitorCanvasObj[monId];
-    canvasCtx.fillStyle="white";
+    canvasCtx.fillStyle="black"; // for clear reading of white text
     canvasCtx.fillRect(0, 0, canvasObj.width, canvasObj.height);
     var textSize=canvasObj.width * 0.15;
     var text="No Data";
