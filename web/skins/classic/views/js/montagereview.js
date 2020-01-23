@@ -204,7 +204,7 @@ function imagedone( obj, monId, success ) {
     if ( liveMode ) {
       writeText( monId, "Camera Offline" );
     } else {
-			loadNoData( monId ); // looks much better when there is no old image in the background
+      loadNoData( monId ); // looks much better when there is no old image in the background
       writeText( monId, "No Data" );
     }
   } else {
