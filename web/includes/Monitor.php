@@ -11,7 +11,7 @@ class Monitor extends ZM_Object {
 
   protected $defaults = array(
     'Id' => null,
-    'Name' => '',
+    'Name' => array('type'=>'text','filter_regexp'=>'/[^\w\-\.\(\)\:\/ ]/'),
     'Notes' => '',
     'ServerId' => 0,
     'StorageId' => 0,
@@ -284,12 +284,13 @@ class Monitor extends ZM_Object {
       $url = $Server->UrlToApi().'/monitors/daemonControl/'.$this->{'Id'}.'/'.$mode.'/zmc.json';
       if ( ZM_OPT_USE_AUTH ) {
         if ( ZM_AUTH_RELAY == 'hashed' ) {
-          $url .= '?auth='.generateAuthHash( ZM_AUTH_HASH_IPS );
-        } elseif ( ZM_AUTH_RELAY == 'plain' ) {
-          $url = '?user='.$_SESSION['username'];
-          $url = '?pass='.$_SESSION['password'];
-        } elseif ( ZM_AUTH_RELAY == 'none' ) {
-          $url = '?user='.$_SESSION['username'];
+          $url .= '?auth='.generateAuthHash(ZM_AUTH_HASH_IPS);
+        } else if ( ZM_AUTH_RELAY == 'plain' ) {
+          $url .= '?user='.$_SESSION['username'];
+          $url .= '?pass='.$_SESSION['password'];
+        } else {
+          Error('Multi-Server requires AUTH_RELAY be either HASH or PLAIN');
+          return;
         }
       }
       Logger::Debug("sending command to $url");
@@ -342,12 +343,13 @@ class Monitor extends ZM_Object {
       $url = ZM_BASE_PROTOCOL . '://'.$Server->Hostname().'/zm/api/monitors/daemonControl/'.$this->{'Id'}.'/'.$mode.'/zma.json';
       if ( ZM_OPT_USE_AUTH ) {
         if ( ZM_AUTH_RELAY == 'hashed' ) {
-          $url .= '?auth='.generateAuthHash( ZM_AUTH_HASH_IPS );
-        } elseif ( ZM_AUTH_RELAY == 'plain' ) {
-          $url = '?user='.$_SESSION['username'];
-          $url = '?pass='.$_SESSION['password'];
-        } elseif ( ZM_AUTH_RELAY == 'none' ) {
-          $url = '?user='.$_SESSION['username'];
+          $url .= '?auth='.generateAuthHash(ZM_AUTH_HASH_IPS);
+        } else if ( ZM_AUTH_RELAY == 'plain' ) {
+          $url .= '?user='.$_SESSION['username'];
+          $url .= '?pass='.$_SESSION['password'];
+        } else {
+          Error('Multi-Server requires AUTH_RELAY be either HASH or PLAIN');
+          return;
         }
       }
       Logger::Debug("sending command to $url");
@@ -439,14 +441,17 @@ class Monitor extends ZM_Object {
     $source = '';
     if ( $this->{'Type'} == 'Local' ) {
       $source = $this->{'Device'}.' ('.$this->{'Channel'}.')';
-    } elseif ( $this->{'Type'} == 'Remote' ) {
+    } else if ( $this->{'Type'} == 'Remote' ) {
       $source = preg_replace( '/^.*@/', '', $this->{'Host'} );
       if ( $this->{'Port'} != '80' and $this->{'Port'} != '554' ) {
         $source .= ':'.$this->{'Port'};
       }
-    } elseif ( $this->{'Type'} == 'File' || $this->{'Type'} == 'cURL' ) {
-      $source = preg_replace( '/^.*\//', '', $this->{'Path'} );
-    } elseif ( $this->{'Type'} == 'Ffmpeg' || $this->{'Type'} == 'Libvlc' || $this->{'Type'} == 'WebSite' ) {
+    } else if ( $this->{'Type'} == 'VNC' ) {
+      $source = preg_replace( '/^.*@/', '', $this->{'Host'} );
+      if ( $this->{'Port'} != '5900' ) {
+        $source .= ':'.$this->{'Port'};
+      }
+    } else if ( $this->{'Type'} == 'Ffmpeg' || $this->{'Type'} == 'Libvlc' || $this->{'Type'} == 'WebSite' ) {
       $url_parts = parse_url( $this->{'Path'} );
       if ( ZM_WEB_FILTER_SOURCE == 'Hostname' ) {
         # Filter out everything but the hostname
@@ -455,7 +460,7 @@ class Monitor extends ZM_Object {
         } else {
           $source = $this->{'Path'};
         }
-      } elseif ( ZM_WEB_FILTER_SOURCE == 'NoCredentials' ) {
+      } else if ( ZM_WEB_FILTER_SOURCE == 'NoCredentials' ) {
         # Filter out sensitive and common items
         unset($url_parts['user']);
         unset($url_parts['pass']);
@@ -495,6 +500,10 @@ class Monitor extends ZM_Object {
     if ( !count($options) ) {
       if ( $command == 'quit' ) {
         $options['command'] = 'quit';
+      } else if ( $command == 'start' ) {
+        $options['command'] = 'start';
+      } else if ( $command == 'stop' ) {
+        $options['command'] = 'stop';
       } else {
         Warning("No commands to send to zmcontrol from $command");
         return false;
@@ -529,7 +538,7 @@ class Monitor extends ZM_Object {
     } else if ( $this->ServerId() ) {
       $Server = $this->Server();
 
-      $url = ZM_BASE_PROTOCOL . '://'.$Server->Hostname().'/zm/api/monitors/daemonControl/'.$this->{'Id'}.'/'.$mode.'/zmcontrol.json';
+      $url = ZM_BASE_PROTOCOL . '://'.$Server->Hostname().'/zm/api/monitors/daemonControl/'.$this->{'Id'}.'/'.$command.'/zmcontrol.pl.json';
       if ( ZM_OPT_USE_AUTH ) {
         if ( ZM_AUTH_RELAY == 'hashed' ) {
           $url .= '?auth='.generateAuthHash( ZM_AUTH_HASH_IPS );
@@ -545,12 +554,12 @@ class Monitor extends ZM_Object {
       $context = stream_context_create();
       try {
         $result = file_get_contents($url, false, $context);
-        if ($result === FALSE) { /* Handle error */
-          Error("Error restarting zma using $url");
+        if ( $result === FALSE ) { /* Handle error */
+          Error("Error sending command using $url");
           return false;
         }
       } catch ( Exception $e ) {
-        Error("Except $e thrown trying to restart zma");
+        Error("Exception $e thrown trying to send command to $url");
         return false;
       }
     } else {

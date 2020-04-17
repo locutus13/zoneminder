@@ -99,10 +99,9 @@ if ( $css != 'base' )
 <link rel="stylesheet" href="skins/classic/js/chosen/chosen.min.css" type="text/css"/>
 <?php
   if ( $basename == 'watch' ) {
-    echo output_link_if_exists( array(
-      '/css/base/views/control.css',
-      '/css/'.$css.'/views/control.css'
-    ) );
+    echo output_link_if_exists(array('/css/base/views/control.css'));
+    if ( $css != 'base' )
+      echo output_link_if_exists(array('/css/'.$css.'/views/control.css'));
   }
 ?>
   <style type="text/css">
@@ -353,7 +352,7 @@ if ( ZM_OPT_USE_AUTH and $user ) {
 ?>
   <p class="navbar-text">
     <i class="material-icons">account_circle</i>
-    <?php echo makePopupLink( '?view=logout', 'zmLogout', 'logout', $user['Username'], (ZM_AUTH_TYPE == "builtin") ) ?>
+    <?php echo makePopupLink('?view=logout', 'zmLogout', 'logout', $user['Username'], (ZM_AUTH_TYPE == 'builtin')) ?>
   </p>
 <?php
 }
@@ -397,7 +396,7 @@ if ( (!ZM_OPT_USE_AUTH) or $user ) {
 ?>
 	  <li><?php echo translate('Storage') ?>:
 <?php
-  $storage_areas = ZM\Storage::find();
+  $storage_areas = ZM\Storage::find(array('Enabled'=>true));
   $storage_paths = null;
 	$storage_areas_with_no_server_id = array();
   foreach ( $storage_areas as $area ) {
@@ -423,7 +422,14 @@ if ( (!ZM_OPT_USE_AUTH) or $user ) {
     $storage_areas = $storage_areas_with_no_server_id;
   if ( count($storage_areas) <= 4 )
     echo implode(', ', array_map($func, $storage_areas));
-  echo ' ' . ZM_PATH_MAP .': '. getDiskPercent(ZM_PATH_MAP).'%';
+  $shm_percent = getDiskPercent(ZM_PATH_MAP);
+  $class = '';
+  if ( $shm_percent > 98 ) {
+    $class = 'error';
+  } else if ( $shm_percent > 90 ) {
+    $class = 'warning';
+  }
+  echo ' <span class="'.$class.'">'.ZM_PATH_MAP.': '.$shm_percent.'%</span>';
 ?></li>
   </ul>
     <?php if ( defined('ZM_WEB_CONSOLE_BANNER') and ZM_WEB_CONSOLE_BANNER != '' ) { ?>
